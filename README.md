@@ -1,2 +1,2 @@
 # getlocaladminusers
-C++ project to get list of objects from Administrators group
+C++ project to get list of users from Administrators group
