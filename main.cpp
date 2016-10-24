@@ -14,63 +14,66 @@ DWORD inetService = INTERNET_SERVICE_FTP;
 
 int main(int argc, char** argv)
 {
-	wchar_t LOCALGRP[100]= L"Administrators", HOSTNAME[MAX_COMPUTERNAME_LENGTH+1], PWD[MAX_PATH+1], MERGED[300]=L"\0";
+	wchar_t LOCALGRP[100]= L"Administrators", HOSTNAME[MAX_COMPUTERNAME_LENGTH+1], FILEPATH[MAX_PATH+1], MERGED[MAX_PATH+1]=L"\0";
 	DWORD bufSize = MAX_COMPUTERNAME_LENGTH;
 	DWORD LEVEL=1, prefmaxlength=MAX_PREFERRED_LENGTH, entriesread, totalentries;
 	PLOCALGROUP_MEMBERS_INFO_1 bufptr;
-	FILE *RESULTFILE;
-			
-	GetCurrentDirectoryW(MAX_PATH,PWD);
+	FILE *RESULTFILE=NULL;
+	
+	GetCurrentDirectoryW(MAX_PATH,FILEPATH);
 	GetComputerNameW(HOSTNAME,&bufSize);
-	wcscat(PWD,L"\\");
-	wcscat(PWD,HOSTNAME);
-	wcscat(PWD,L".csv");
-	RESULTFILE = _wfopen(PWD,L"w");
-//	if(!RESULTFILE) { goto EXIT_PROGRAM; }
-
-	fputws(L"\"Hostname\",\"Username\"\n",RESULTFILE);
-	fputws(L"\"",RESULTFILE);
-	fputws(HOSTNAME,RESULTFILE);
-	fputws(L"\",\"",RESULTFILE);
+	wcscat(FILEPATH,L"\\");
+	wcscat(FILEPATH,HOSTNAME);
+	wcscat(FILEPATH,L".csv");
+	RESULTFILE = _wfopen(FILEPATH,L"w");
+	
+	if(RESULTFILE)
+	{
+		fputws(L"\"Hostname\",\"Username\"\n",RESULTFILE);
+		fputws(L"\"",RESULTFILE);
+		fputws(HOSTNAME,RESULTFILE);
+		fputws(L"\",\"",RESULTFILE);
 
 /*------------------------------------------ Get list of objects from Administrators group of a system ------------------------------------------*/
-	if(NetLocalGroupGetMembers(NULL,LOCALGRP,LEVEL,(LPBYTE *)&bufptr,prefmaxlength,&entriesread,&totalentries,0) == NERR_Success)
-	{
-		for(int i=0; i<entriesread; i++)
+		if(NetLocalGroupGetMembers(NULL,LOCALGRP,LEVEL,(LPBYTE *)&bufptr,prefmaxlength,&entriesread,&totalentries,0) == NERR_Success)
 		{
-			if(bufptr[i].lgrmi1_sidusage == SidTypeUser)
+			for(int i=0; i<entriesread; i++)
 			{
-				wcscat(MERGED,bufptr[i].lgrmi1_name);
-				if(i!=entriesread-1)
+				if(bufptr[i].lgrmi1_sidusage == SidTypeUser)
 				{
-					wcscat(MERGED,L",");
+					wcscat(MERGED,bufptr[i].lgrmi1_name);
+					if(i!=entriesread-1)
+					{
+						wcscat(MERGED,L",");
+					}
 				}
 			}
 		}
-	}
-	else
-	{
-		wcscpy(MERGED,L"Error while fetching data.");
-	}
+		else
+		{
+			wcscpy(MERGED,L"Error while fetching data.");
+		}
 
 /*------------------------------------------ Write results to file ------------------------------------------*/
-	fputws(MERGED,RESULTFILE);
-	fputws(L"\"\n",RESULTFILE);	
-	NetApiBufferFree(&bufptr);
-	fclose(RESULTFILE);
+		fputws(MERGED,RESULTFILE);
+		fputws(L"\"\n",RESULTFILE);	
+		NetApiBufferFree(&bufptr);
+		fclose(RESULTFILE);
 
 /*------------------------------------------ Open network connection ------------------------------------------*/
-	HINETOPEN = InternetOpen(uAgent,AccessType,NULL,NULL,INTERNET_FLAG_ASYNC);
-	if(!HINETOPEN){ goto EXIT_PROGRAM; }
+		HINETOPEN = InternetOpen(uAgent,AccessType,NULL,NULL,INTERNET_FLAG_ASYNC);
+		if(!HINETOPEN){ goto EXIT_PROGRAM; }
 	
 /*------------------------------------------ Connect to Remote FTP service -----------------------------------------*/
-	HINETCONNECT = InternetConnect(HINETOPEN,ftpServer,21,ftpUname,ftpPass,inetService,INTERNET_FLAG_PASSIVE,0);
-	if(!HINETCONNECT){ goto EXIT_PROGRAM; }
+		HINETCONNECT = InternetConnect(HINETOPEN,ftpServer,21,ftpUname,ftpPass,inetService,INTERNET_FLAG_PASSIVE,0);
+		if(!HINETCONNECT){ goto EXIT_PROGRAM; }
 
 /*------------------------------------------ Upload file to FTP server ------------------------------------------*/
-	if(!FtpPutFileW(HINETCONNECT,wcscat(HOSTNAME,L".csv"),HOSTNAME,FTP_TRANSFER_TYPE_BINARY,0)) { goto EXIT_PROGRAM; }
+		if(!FtpPutFileW(HINETCONNECT,wcscat(HOSTNAME,L".csv"),HOSTNAME,FTP_TRANSFER_TYPE_BINARY,0)) { goto EXIT_PROGRAM; }
 
 /*------------------------------------------- Free handles and buffers ---------------------------------------------*/
+	}
+	
 	EXIT_PROGRAM:
 	if(HINETCONNECT) { InternetCloseHandle(HINETCONNECT); }
 	if(HINETOPEN) { InternetCloseHandle(HINETOPEN); }
