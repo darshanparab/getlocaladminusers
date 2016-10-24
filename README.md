@@ -1,4 +1,6 @@
 # getlocaladminusers
 C++ project to get list of users from Administrators group.
 
-Compiled with Bloodshed dev-c++
+Notes:
+ - Compile with Bloodshed dev-c++
+ - Make sure to modify ftpserver, ftpuser and ftppass before compiling
